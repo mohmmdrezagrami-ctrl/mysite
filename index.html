@@ -138,8 +138,6 @@ footer span{color:var(--cyan)}
 #chatSend{background:var(--cyan);color:#04141C;border:0;border-radius:8px;padding:0 16px;font:700 .9rem 'Tajawal',sans-serif;cursor:pointer}
 /* ===== Banner + Maintenance ===== */
 #banner{position:fixed;top:0;left:0;right:0;z-index:70;background:linear-gradient(90deg,var(--violet),var(--cyan));color:#04141C;text-align:center;font-weight:700;font-size:.88rem;padding:9px 14px}
-#maint{position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;align-items:center;justify-content:center;text-align:center;padding:30px}
-#maint p{max-width:420px;color:var(--bright);font-size:1.2rem;line-height:2}
 /* ===== Contact form ===== */
 .cform{max-width:420px;margin:0 auto 30px;display:flex;flex-direction:column;gap:10px;text-align:right}
 .cform input,.cform textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:11px 14px;color:var(--bright);font:inherit}
@@ -149,7 +147,6 @@ footer span{color:var(--cyan)}
 </style>
 </head>
 <body>
-<div id="maint" hidden><p id="maintMsg">الموقع تحت الصيانة حالياً 🛠️</p></div>
 <canvas id="circuitCanvas"></canvas>
 <div class="bg-grid"></div><div class="orb o1"></div><div class="orb o2"></div>
 
@@ -281,8 +278,6 @@ const API='';
   fetch(API+'/api/hit',{method:'POST'}).catch(()=>{});
   try{
     const c=await(await fetch(API+'/api/config?t='+Date.now(),{cache:'no-store'})).json();
-    const isAdmin=localStorage.getItem('hj_admin')==='1';
-    if(c.maintenance && !isAdmin){location.replace('maintenance.html');return}
     if(c.banner){const b=document.getElementById('banner');b.textContent=c.banner;b.hidden=false;document.body.style.paddingTop='40px'}
     window.__chatOn=c.chatOn!==false;
     if(c.projects&&c.projects.length){
