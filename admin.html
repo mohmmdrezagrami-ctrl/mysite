@@ -44,6 +44,24 @@ label.sw input{width:18px;height:18px;accent-color:var(--cyan)}
 .item p{margin-top:4px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
 .bot{color:#a678ff}
 #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--cyan);color:#04141C;padding:10px 22px;border-radius:8px;font-weight:700}
+/* ===== Live chat ===== */
+.sess{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.sess:last-child{border:0}
+.sess:hover{background:#0f1826}
+.sess b{color:var(--bright);display:block}
+.sess small{color:var(--dim)}
+.badge{font-size:.72rem;padding:3px 9px;border-radius:20px;background:rgba(0,212,255,.12);color:var(--cyan);border:1px solid rgba(0,212,255,.3)}
+.badge.end{background:rgba(125,140,160,.12);color:var(--dim);border-color:var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-left:6px}
+.dot.on{background:#3ddc84;box-shadow:0 0 8px #3ddc84}
+.dot.off{background:#5c6b7e}
+#liveMsgs{max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:6px 2px;margin-bottom:12px}
+.lm{max-width:80%;padding:9px 13px;border-radius:10px;font-size:.9rem;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+.lm.v{background:#1a2535;align-self:flex-start}
+.lm.o,.lm.a{background:linear-gradient(120deg,var(--cyan),#0ea5e0);color:#04141C;align-self:flex-end;font-weight:500}
+.lm small{display:block;font-size:.68rem;opacity:.7;margin-top:3px}
+.replyRow{display:flex;gap:8px}
+.replyRow textarea{min-height:44px}
 </style>
 </head>
 <body>
@@ -72,13 +90,13 @@ const DEFP=[
  {name:'أداة أتمتة مهام',desc:'سكربت يقلّل العمل اليدوي المتكرر ويحوّل عملية كانت تستهلك ساعات إلى دقائق.',stack:'Automation, Python'},
  {name:'موقع تعريفي مخصّص',desc:'تصميم وبناء صفحات تعريفية بهوية بصرية مستقلة، مبنية بالكامل بدون قوالب جاهزة.',stack:'HTML/CSS, UX'}];
 
-// كل تبويب = عنصر هنا. لإضافة ميزة جديدة (مثل التكتات) أضف تبويباً ودالة عرض.
-const TABS={overview:['نظرة عامة',vOverview],site:['الموقع',vSite],ai:['الذكاء',vAI],projects:['المشاريع',vProjects],inbox:['الرسائل',vInbox],chats:['المحادثات',vChats]};
+// كل تبويب = عنصر هنا. لإضافة ميزة جديدة أضف تبويباً ودالة عرض.
+const TABS={overview:['نظرة عامة',vOverview],site:['الموقع',vSite],ai:['الذكاء',vAI],projects:['المشاريع',vProjects],inbox:['الرسائل',vInbox],live:['الدردشة المباشرة',vLive]};
 
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt=t=>new Date(t).toLocaleString('ar-IQ');
-let code=sessionStorage.getItem('c')||'',D,P,tab='overview';
+let code=sessionStorage.getItem('c')||'',D,P,L={online:false,sessions:[]},openSid=null,S=null,tab='overview',liveTimer=null;
 
 async function api(p,body){
   const r=await fetch(API+p,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',Authorization:code},body:body?JSON.stringify(body):undefined});
@@ -89,8 +107,11 @@ function toast(t){const e=$('#toast');e.textContent=t;e.hidden=false;setTimeout(
 
 async function load(){
   if(!API){$('#err').textContent='ضع رابط الـ Worker في المتغير API أعلى الملف';return}
-  try{D=await api('/api/admin/data');localStorage.setItem('hj_admin','1');P=D.cfg.projects||DEFP.map(x=>({...x}));$('#login').hidden=true;$('#app').hidden=false;draw()}
-  catch(e){$('#login').hidden=false;$('#app').hidden=true;sessionStorage.removeItem('c');$('#err').textContent=e===429?'محاولات كثيرة، انتظر 15 دقيقة':(code?'الرمز غلط':'')}
+  try{
+    [D,L]=await Promise.all([api('/api/admin/data'),api('/api/admin/live')]);
+    localStorage.setItem('hj_admin','1');P=D.cfg.projects||DEFP.map(x=>({...x}));
+    $('#login').hidden=true;$('#app').hidden=false;draw();
+  }catch(e){$('#login').hidden=false;$('#app').hidden=true;sessionStorage.removeItem('c');$('#err').textContent=e===429?'محاولات كثيرة، انتظر 15 دقيقة':(code?'الرمز غلط':'')}
 }
 $('#go').onclick=()=>{code=$('#code').value;sessionStorage.setItem('c',code);load()};
 $('#code').onkeydown=e=>{if(e.key==='Enter')$('#go').click()};
@@ -98,10 +119,12 @@ $('#out').onclick=()=>{sessionStorage.removeItem('c');localStorage.removeItem('h
 $('#view').onclick=()=>open('index.html','_blank');
 
 function draw(){
-  $('#tabs').innerHTML=Object.entries(TABS).map(([k,v])=>`<button data-k="${k}" class="${k===tab?'on':''}">${v[0]}</button>`).join('');
-  $('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.k;draw()});
+  $('#tabs').innerHTML=Object.entries(TABS).map(([k,v])=>`<button data-k="${k}" class="${k===tab?'on':''}">${v[0]}${k==='live'&&L.online?' 🟢':''}</button>`).join('');
+  $('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.k;openSid=null;draw()});
   $('#main').innerHTML=TABS[tab][1]();
   bind();
+  clearInterval(liveTimer);
+  if(tab==='live')liveTimer=setInterval(liveTick,4000);
 }
 
 function vOverview(){
@@ -112,13 +135,9 @@ function vOverview(){
    <div class="card"><div class="num">${week}</div><span>زيارات آخر 7 أيام</span></div>
    <div class="card"><div class="num">${D.stats.chats||0}</div><span>رسائل الدردشة</span></div>
    <div class="card"><div class="num">${D.inbox.length}</div><span>رسائل واردة</span></div></div>
-   <div class="card"><h3>الحالة</h3><p>الموقع: <b>${D.cfg.maintenance?'🛠️ تحت الصيانة':'✅ يعمل'}</b></p><p>الدردشة: <b>${D.cfg.chatOn?'✅ شغالة':'⏸️ متوقفة'}</b></p></div>`;
+   <div class="card"><h3>الحالة</h3><p>الدردشة: <b>${D.cfg.chatOn?'✅ شغالة':'⏸️ متوقفة'}</b></p><p>الرد المباشر: <b>${L.online?'🟢 أنت متصل، الذكاء متوقف عن الرد':'⚪ الذكاء يرد بدالك'}</b></p></div>`;
 }
-function vSite(){const c=D.cfg;return `<div class="card"><h3>وضع الصيانة</h3>
-  <label class="sw"><input type="checkbox" id="mt" ${c.maintenance?'checked':''}> تفعيل الصيانة (الزوار يشوفون رسالة فقط)</label>
-  <input type="text" id="mtm" value="${esc(c.maintenanceMsg)}">
-  <p class="hint">أنت تشوف الموقع طبيعي لأنك مسجّل دخول من هذا المتصفح.</p></div>
-  <div class="card"><h3>شريط إعلان</h3>
+function vSite(){const c=D.cfg;return `<div class="card"><h3>شريط إعلان</h3>
   <label class="sw"><input type="checkbox" id="bo" ${c.bannerOn?'checked':''}> إظهار الشريط أعلى الموقع</label>
   <input type="text" id="bt" value="${esc(c.banner)}" placeholder="مثال: متاح لمشاريع جديدة 🚀"></div>
   <div class="card"><h3>الدردشة</h3><label class="sw"><input type="checkbox" id="co" ${c.chatOn?'checked':''}> تشغيل الدردشة للزوار</label></div>
@@ -130,7 +149,54 @@ function vProjects(){return `<div class="card"><h3>المشاريع (تظهر ف
   ${P.map((p,i)=>`<div class="row"><input type="text" data-i="${i}" data-f="name" value="${esc(p.name)}" placeholder="الاسم"><input type="text" data-i="${i}" data-f="desc" value="${esc(p.desc)}" placeholder="الوصف"><input type="text" data-i="${i}" data-f="stack" value="${esc(p.stack)}" placeholder="Python, API"><button class="btn r" data-del="${i}">حذف</button></div>`).join('')}
   <button class="btn g" id="add">+ إضافة مشروع</button></div><button class="btn" id="save">حفظ</button>`}
 function vInbox(){return `<div class="card"><h3>الرسائل الواردة (${D.inbox.length})</h3>${D.inbox.map(m=>`<div class="item"><small>${esc(m.name||'بدون اسم')} · ${fmt(m.t)}</small><p>${esc(m.msg)}</p></div>`).join('')||'<p class="hint">ما في رسائل.</p>'}</div>${D.inbox.length?'<button class="btn r" data-clear="inbox">مسح الكل</button>':''}`}
-function vChats(){return `<div class="card"><h3>المحادثات (${D.chats.length})</h3>${D.chats.map(m=>`<div class="item"><small>${fmt(m.t)}</small><p>👤 ${esc(m.q)}</p><p class="bot">🤖 ${esc(m.a)}</p></div>`).join('')||'<p class="hint">ما في محادثات.</p>'}</div>${D.chats.length?'<button class="btn r" data-clear="chats">مسح الكل</button>':''}`}
+
+// ===== الدردشة المباشرة =====
+function vLive(){
+  if(openSid)return vLiveDetail();
+  return `<div class="card"><h3><span class="dot ${L.online?'on':'off'}"></span>${L.online?'أنت متصل الآن':'أنت غير متصل'}</h3>
+   <label class="sw"><input type="checkbox" id="pres" ${L.online?'checked':''}> فعّل هذا الخيار وقت تحب ترد على الناس بنفسك بدل الذكاء</label>
+   <p class="hint">لما يكون مفعّل، الذكاء يوقف عن الرد وتوصلك الرسائل هنا لترد عليها مباشرة. لما توقفه، الذكاء يرجع يرد تلقائياً.</p></div>
+   <div class="card"><h3>اسمك الظاهر للزوار</h3>
+   <input type="text" id="on" value="${esc(D.cfg.ownerName)}" placeholder="حسين جبار">
+   <label class="sw"><input type="checkbox" id="ob" ${D.cfg.ownerBadge?'checked':''}> إظهار علامة توثيق ✓ جنب اسمك</label>
+   <p class="hint">مدة انتهاء المحادثة تلقائياً إذا ما صار فيها أي رسالة جديدة (بالدقائق):</p>
+   <input type="text" id="ltm" value="${D.cfg.liveTimeoutMin}" inputmode="numeric"></div>
+   <button class="btn" id="save">حفظ</button>
+   <div class="card"><h3>المحادثات (${L.sessions.length})</h3>
+   ${L.sessions.map(s=>`<div class="sess" data-open="${s.id}"><span><b>${esc(s.name)}</b><small>${fmt(s.lastAt)}</small></span><span class="badge ${s.ended?'end':''}">${s.ended?'منتهية':'نشطة'}</span></div>`).join('')||'<p class="hint">ما في محادثات بعد.</p>'}
+   </div>`;
+}
+function vLiveDetail(){
+  if(!S)return '<p class="hint">...جارِ التحميل</p>';
+  return `<button class="btn g" id="back">← رجوع للقائمة</button>
+   <div class="card" style="margin-top:14px"><h3>${esc(S.name)}</h3>
+   <div id="liveMsgs">${liveMsgsHtml(S.msgs)}</div>
+   <div class="replyRow"><textarea id="replyBox" placeholder="اكتب ردّك هنا..."></textarea><button class="btn" id="replySend">إرسال</button></div>
+   </div>
+   <div class="card"><h3>إعدادات هذي المحادثة</h3>
+   <label class="sw"><input type="checkbox" id="keep" ${S.keep?'checked':''}> خلّها دائماً، لا تنتهي تلقائياً</label>
+   <p class="hint">وقت مخصص لانتهائها بالدقائق (اتركه صفر عشان يستخدم الإعداد العام):</p>
+   <input type="text" id="tmin" value="${S.timeoutMin||0}" inputmode="numeric">
+   <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+     <button class="btn g" id="liveSave">حفظ الإعدادات</button>
+     <button class="btn g" id="endNow">إنهاء المحادثة الآن</button>
+     <button class="btn r" id="delConv">حذف المحادثة نهائياً</button>
+   </div></div>`;
+}
+function liveMsgsHtml(msgs){
+  return msgs.map(m=>{
+    if(m.who==='v')return `<div class="lm v">${esc(m.text)}<small>${fmt(m.t)}</small></div>`;
+    const tag=m.who==='o'?'أنت':'زلفي 🤖';
+    return `<div class="lm o">${tag}<br>${esc(m.text)}<small>${fmt(m.t)}</small></div>`;
+  }).join('')||'<p class="hint">ما في رسائل بعد.</p>';
+}
+async function openConv(id){openSid=id;S=null;draw();try{S=await api('/api/admin/live/session',{sid:id});draw()}catch(e){toast('فشل التحميل')}}
+async function liveTick(){
+  try{
+    if(openSid){const fresh=await api('/api/admin/live/session',{sid:openSid});S=fresh;const c=$('#liveMsgs');if(c)c.innerHTML=liveMsgsHtml(S.msgs)}
+    else{L=await api('/api/admin/live');const list=$('#main');if(list&&tab==='live'&&!openSid)draw()}
+  }catch(e){}
+}
 
 function bind(){
   const m=$('#main');
@@ -139,11 +205,29 @@ function bind(){
   const a=$('#add');if(a)a.onclick=()=>{if(P.length<12){P.push({name:'',desc:'',stack:''});draw()}};
   m.querySelectorAll('[data-clear]').forEach(b=>b.onclick=async()=>{if(confirm('متأكد؟')){await api('/api/admin/clear',{what:b.dataset.clear});D[b.dataset.clear]=[];draw();toast('تم')}});
   const s=$('#save');if(s)s.onclick=save;
+  const pr=$('#pres');if(pr)pr.onchange=async()=>{try{await api('/api/admin/live/presence',{online:pr.checked});L.online=pr.checked;draw();toast(pr.checked?'صرت متصل':'رجع الذكاء يرد')}catch(e){toast('صار خطأ')}};
+  m.querySelectorAll('[data-open]').forEach(el=>el.onclick=()=>openConv(el.dataset.open));
+  const back=$('#back');if(back)back.onclick=()=>{openSid=null;S=null;draw()};
+  const rs=$('#replySend');if(rs)rs.onclick=sendReply;
+  const rb=$('#replyBox');if(rb)rb.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendReply()}});
+  const ls=$('#liveSave');if(ls)ls.onclick=saveConvSettings;
+  const en=$('#endNow');if(en)en.onclick=async()=>{await api('/api/admin/live/settings',{sid:openSid,end:true});toast('تم الإنهاء');openConv(openSid)};
+  const dc=$('#delConv');if(dc)dc.onclick=async()=>{if(confirm('حذف هذي المحادثة نهائياً؟')){await api('/api/admin/live/delete',{sid:openSid});openSid=null;S=null;L=await api('/api/admin/live');draw();toast('تم الحذف')}};
+}
+async function sendReply(){
+  const t=$('#replyBox'),text=t.value.trim();if(!text)return;t.value='';
+  try{await api('/api/admin/live/reply',{sid:openSid,text});S=await api('/api/admin/live/session',{sid:openSid});$('#liveMsgs').innerHTML=liveMsgsHtml(S.msgs)}
+  catch(e){toast('فشل الإرسال')}
+}
+async function saveConvSettings(){
+  const keep=$('#keep').checked,tmin=+($('#tmin').value)||0;
+  try{await api('/api/admin/live/settings',{sid:openSid,keep,timeoutMin:tmin});toast('تم الحفظ ✓')}catch(e){toast('فشل الحفظ')}
 }
 async function save(){
   const g=id=>$('#'+id),c=D.cfg;
-  if(g('mt')){c.maintenance=g('mt').checked;c.maintenanceMsg=g('mtm').value;c.bannerOn=g('bo').checked;c.banner=g('bt').value;c.chatOn=g('co').checked}
+  if(g('bo')){c.bannerOn=g('bo').checked;c.banner=g('bt').value;c.chatOn=g('co').checked}
   if(g('pe'))c.persona=g('pe').value;
+  if(g('on')){c.ownerName=g('on').value;c.ownerBadge=g('ob').checked;c.liveTimeoutMin=+g('ltm').value||60}
   c.projects=tab==='projects'||c.projects?P.filter(p=>p.name.trim()):null;
   try{await api('/api/admin/config',c);toast('تم الحفظ ✓')}catch(e){toast('فشل الحفظ')}
 }
