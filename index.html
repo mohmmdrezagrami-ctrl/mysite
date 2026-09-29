@@ -127,14 +127,17 @@ footer span{color:var(--cyan)}
 #chatBtn svg{width:26px;height:26px;stroke:#04141C;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 #chatBox{position:fixed;left:22px;bottom:96px;z-index:60;width:min(360px,calc(100vw - 44px));height:min(480px,calc(100vh - 130px));background:var(--card);border:1px solid var(--line);border-radius:14px;display:none;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)}
 #chatBox.open{display:flex;animation:up .3s ease forwards}
-.ch{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;color:var(--bright);font-weight:700}
+.ch{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;color:var(--bright);font-weight:700;cursor:move;user-select:none}
 .ch button{background:none;border:0;color:var(--dim);font-size:1.4rem;cursor:pointer;line-height:1}
 #msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
 .m{max-width:85%;padding:10px 14px;border-radius:12px;line-height:1.7;font-size:.93rem;white-space:pre-wrap}
 .m.bot{background:#1a2535;color:var(--main);align-self:flex-start;border-top-right-radius:2px}
 .m.me{background:linear-gradient(120deg,var(--cyan),#0ea5e0);color:#04141C;align-self:flex-end;border-top-left-radius:2px;font-weight:500}
-.m.owner{border:1px solid rgba(0,212,255,.35)}
-.owner-tag{display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--cyan);font-weight:700;margin-bottom:4px}
+.m.owner{border:1px solid rgba(0,212,255,.35);display:flex;gap:8px;align-items:flex-start;max-width:88%}
+.owner-tag{display:block;font-size:.72rem;color:var(--cyan);font-weight:700;margin-bottom:3px}
+.ownav{position:relative;flex:none;width:26px;height:26px;border-radius:50%;overflow:hidden;background:linear-gradient(120deg,var(--cyan),var(--violet));display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#04141C}
+.ownav img{width:100%;height:100%;object-fit:cover}
+.ownav .vb{position:absolute;bottom:-2px;left:-2px;width:12px;height:12px;border-radius:50%;background:#00D4FF;border:2px solid var(--card);display:flex;align-items:center;justify-content:center}
 .cf{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)}
 #chatIn{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--bright);font:inherit;font-size:.93rem}
 #chatSend{background:var(--cyan);color:#04141C;border:0;border-radius:8px;padding:0 16px;font:700 .9rem 'Tajawal',sans-serif;cursor:pointer}
@@ -235,7 +238,7 @@ footer span{color:var(--cyan)}
 
 <button id="chatBtn" aria-label="الدعم الفني" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
 <div id="chatBox" role="dialog" aria-label="الدعم الفني">
-  <div class="ch"><span>الدعم الفني</span><button id="chatClose" aria-label="إغلاق">×</button></div>
+  <div class="ch" id="chHead"><span>الدعم الفني</span><button id="chatClose" aria-label="إغلاق">×</button></div>
   <div id="msgs"></div>
   <div class="cf"><input id="chatIn" placeholder="اكتب سؤالك..." autocomplete="off"><button id="chatSend">إرسال</button></div>
 </div>
@@ -307,24 +310,42 @@ cform.addEventListener('submit',async e=>{
 });
 
 // ===== Support chat (ذكاء + إمكانية تدخل صاحب الموقع مباشرة) =====
-const box=document.getElementById('chatBox'),btn=document.getElementById('chatBtn'),msgs=document.getElementById('msgs'),inp=document.getElementById('chatIn');
+const box=document.getElementById('chatBox'),btn=document.getElementById('chatBtn'),msgs=document.getElementById('msgs'),inp=document.getElementById('chatIn'),chHead=document.getElementById('chHead');
 let SID=localStorage.getItem('hj_sid');
 if(!SID){SID=(crypto.randomUUID?crypto.randomUUID():'v'+Date.now()+Math.random().toString(36).slice(2)).replace(/[^a-zA-Z0-9_-]/g,'');localStorage.setItem('hj_sid',SID)}
-let renderedCount=0,pollTimer=null;
+let renderedCount=0,pollTimer=null,opened=false,ownerInfo={};
 
-function bubble(who,text,ownerName){
+function avatarHtml(name,url,badge){
+ const inner=url?`<img src="${esc(url)}" alt="">`:`<span>${esc((name||'ح')[0])}</span>`;
+ return `<span class="ownav">${inner}${badge?'<i class="vb"><svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></i>':''}</span>`;
+}
+function bubble(who,text,extra){
  const d=document.createElement('div');
  if(who==='v'){d.className='m me';d.textContent=text}
  else if(who==='o'){
    d.className='m bot owner';
-   d.innerHTML='<span class="owner-tag">'+esc(ownerName||'صاحب الموقع')+' <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#00D4FF" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg></span><div>'+esc(text)+'</div>';
+   d.innerHTML=avatarHtml(ownerInfo.ownerName,ownerInfo.ownerAvatar,ownerInfo.ownerBadge)+'<div><span class="owner-tag">'+esc(ownerInfo.ownerName||'صاحب الموقع')+'</span><div>'+esc(text)+'</div></div>';
  } else {d.className='m bot';d.textContent=text}
- msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;renderedCount++;return d}
+ msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;return d}
 
+async function openChat(){
+ if(opened){inp.focus();return}
+ opened=true;
+ if(API){
+  try{
+   ownerInfo=await(await fetch(API+'/api/presence',{cache:'no-store'})).json();
+   const r=await fetch(API+'/api/live/poll?sid='+SID,{cache:'no-store'});
+   const d=await r.json();
+   ownerInfo={...ownerInfo,...d};
+   if(d.msgs&&d.msgs.length){d.msgs.forEach(m=>bubble(m.who,m.text));renderedCount=d.msgs.length}
+   else bubble('a','هلا! 👋 أنا زلفي، اسألني عن حسين أو خدماته أو حتى سولف وياي عادي.');
+  }catch(e){bubble('a','هلا! 👋 أنا زلفي، اسألني عن حسين أو خدماته أو حتى سولف وياي عادي.')}
+ } else bubble('a','هلا! 👋 أنا زلفي، اسألني عن حسين أو خدماته أو حتى سولف وياي عادي.');
+ startPoll();
+}
 function toggle(o){
  box.classList.toggle('open',o);btn.setAttribute('aria-expanded',o);
- if(o){if(!msgs.children.length)bubble('a','هلا! 👋 أنا زلفي، اسألني عن حسين أو خدماته أو حتى سولف وياي عادي.');inp.focus();startPoll()}
- else stopPoll();
+ if(o){openChat();inp.focus()} else stopPoll();
 }
 btn.onclick=()=>toggle(!box.classList.contains('open'));
 document.getElementById('chatClose').onclick=()=>toggle(false);
@@ -335,9 +356,9 @@ function startPoll(){
   try{
    const r=await fetch(API+'/api/live/poll?sid='+SID,{cache:'no-store'});
    if(!r.ok)return;
-   const d=await r.json();
+   const d=await r.json();ownerInfo={...ownerInfo,...d};
    const fresh=d.msgs.slice(renderedCount);
-   fresh.forEach(m=>{if(m.who!=='v')bubble(m.who,m.text,d.ownerName)});
+   fresh.forEach(m=>{if(m.who!=='v')bubble(m.who,m.text)});
    renderedCount=d.msgs.length;
   }catch(e){}
  },4000);
@@ -354,13 +375,36 @@ async function send(){
   const r=await fetch(API+'/api/live/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sid:SID,name:'زائر',text:q})});
   if(!r.ok)throw 0;
   const d=await r.json();
-  if(d.mode==='live'){w.remove();renderedCount--;const n=bubble('a','وصلت رسالتك ✓ راح يردّك حسين مباشرة بأقرب وقت...');}
-  else{w.textContent=d.reply||'...'}
+  if(d.mode==='live'){
+   w.remove();
+   if(!localStorage.getItem('hj_notice_'+SID)){bubble('a','وصلت رسالتك ✓ راح يردّك حسين مباشرة بأقرب وقت...');localStorage.setItem('hj_notice_'+SID,'1')}
+  } else {w.textContent=d.reply||'...'}
   renderedCount++;
  }catch(e){w.textContent='صار خطأ بالاتصال، جرّب مرة ثانية 🙏'}
 }
 document.getElementById('chatSend').onclick=send;
 inp.addEventListener('keydown',e=>{if(e.key==='Enter')send()});
+
+// ===== سحب نافذة الدردشة =====
+(function(){
+ let dragging=false,sx=0,sy=0,ox=0,oy=0;
+ function start(e){
+  const t=e.touches?e.touches[0]:e; dragging=true;
+  const r=box.getBoundingClientRect(); sx=t.clientX; sy=t.clientY; ox=r.left; oy=r.top;
+  box.style.left=ox+'px';box.style.top=oy+'px';box.style.right='auto';box.style.bottom='auto';
+  e.preventDefault();
+ }
+ function move(e){
+  if(!dragging)return; const t=e.touches?e.touches[0]:e;
+  let nx=ox+(t.clientX-sx), ny=oy+(t.clientY-sy);
+  nx=Math.max(6,Math.min(innerWidth-box.offsetWidth-6,nx));
+  ny=Math.max(6,Math.min(innerHeight-box.offsetHeight-6,ny));
+  box.style.left=nx+'px';box.style.top=ny+'px';
+ }
+ function end(){dragging=false}
+ chHead.addEventListener('mousedown',start);addEventListener('mousemove',move);addEventListener('mouseup',end);
+ chHead.addEventListener('touchstart',start,{passive:false});addEventListener('touchmove',move,{passive:false});addEventListener('touchend',end);
+})();
 </script>
 </body>
 </html>
