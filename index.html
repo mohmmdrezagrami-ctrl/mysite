@@ -6,6 +6,8 @@
 <title>حسين جبار | مهندس ومطوّر برمجيات</title>
 <meta name="description" content="حسين جبار، مهندس ومطوّر برمجيات من البصرة. أبني حلول تقنية من الفكرة إلى الإنتاج.">
 <meta name="theme-color" content="#0A0E14">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='34' fill='%2300D4FF'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -271,16 +273,16 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!still)dr
 
 // ===== الربط مع الـ Worker =====
 // ضع رابط الـ Worker هنا بعد نشره (نفس الرابط في admin.html). إذا تُرك فارغاً، يشتغل الموقع محلياً بدون لوحة تحكم أو ذكاء حقيقي.
-const API='https://tiny-mountain-7c6c.hussanjabba15.workers.dev';
+const API='';
 
 (async function boot(){
   if(!API)return;
   // تتبع الزيارة (يتجاهل الخطأ لو ما في اتصال)
   fetch(API+'/api/hit',{method:'POST'}).catch(()=>{});
   try{
-    const c=await(await fetch(API+'/api/config')).json();
+    const c=await(await fetch(API+'/api/config?t='+Date.now(),{cache:'no-store'})).json();
     const isAdmin=localStorage.getItem('hj_admin')==='1';
-    if(c.maintenance && !isAdmin){document.getElementById('maint').hidden=false;document.getElementById('maintMsg').textContent=c.maintenanceMsg;return}
+    if(c.maintenance && !isAdmin){location.replace('maintenance.html');return}
     if(c.banner){const b=document.getElementById('banner');b.textContent=c.banner;b.hidden=false;document.body.style.paddingTop='40px'}
     window.__chatOn=c.chatOn!==false;
     if(c.projects&&c.projects.length){
