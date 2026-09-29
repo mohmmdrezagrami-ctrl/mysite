@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<title>الموقع تحت الصيانة</title>
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0A0E14;color:#F3F7FB;font-family:'Tajawal',sans-serif;text-align:center;padding:30px}
+p{max-width:420px;font-size:1.2rem;line-height:2}
+</style>
+</head>
+<body>
+<p id="m">الموقع تحت الصيانة حالياً 🛠️</p>
+<script>
+// نفس رابط الـ Worker الموجود في index.html وadmin.html
+const API='https://tiny-mountain-7c6c.hussanjabba15.workers.dev';
+(async()=>{
+  try{
+    const c=await(await fetch(API+'/api/config?t='+Date.now(),{cache:'no-store'})).json();
+    if(!c.maintenance){location.replace('index.html');return}
+    document.getElementById('m').textContent=c.maintenanceMsg||'الموقع تحت الصيانة حالياً 🛠️';
+  }catch(e){}
+})();
+</script>
+</body>
+</html>
