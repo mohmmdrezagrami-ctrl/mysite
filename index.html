@@ -133,6 +133,8 @@ footer span{color:var(--cyan)}
 .m{max-width:85%;padding:10px 14px;border-radius:12px;line-height:1.7;font-size:.93rem;white-space:pre-wrap}
 .m.bot{background:#1a2535;color:var(--main);align-self:flex-start;border-top-right-radius:2px}
 .m.me{background:linear-gradient(120deg,var(--cyan),#0ea5e0);color:#04141C;align-self:flex-end;border-top-left-radius:2px;font-weight:500}
+.m.owner{border:1px solid rgba(0,212,255,.35)}
+.owner-tag{display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--cyan);font-weight:700;margin-bottom:4px}
 .cf{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)}
 #chatIn{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--bright);font:inherit;font-size:.93rem}
 #chatSend{background:var(--cyan);color:#04141C;border:0;border-radius:8px;padding:0 16px;font:700 .9rem 'Tajawal',sans-serif;cursor:pointer}
@@ -270,7 +272,7 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!still)dr
 
 // ===== الربط مع الـ Worker =====
 // ضع رابط الـ Worker هنا بعد نشره (نفس الرابط في admin.html). إذا تُرك فارغاً، يشتغل الموقع محلياً بدون لوحة تحكم أو ذكاء حقيقي.
-const API='https://tiny-mountain-7c6c.hussanjabba15.workers.dev';
+const API='';
 
 (async function boot(){
   if(!API)return;
@@ -304,31 +306,59 @@ cform.addEventListener('submit',async e=>{
   }catch(e){out.textContent='صار خطأ، جرّب مرة ثانية أو راسلني مباشرة.'}
 });
 
-// ===== Support chat =====
-const KB=[
- {k:['مين','من انت','حسين','عرف'],a:'حسين جبار، مهندس ومطوّر برمجيات من البصرة، يبني حلول تقنية من الفكرة إلى الإنتاج.'},
- {k:['خدم','شغل','تسوي','تسوون','تطور','برمج'],a:'يطوّر تطبيقات ويب وأنظمة إدارة داخلية وأدوات أتمتة ومواقع تعريفية مخصصة.'},
- {k:['مهار','تقنيات','لغ','python','بايثون','javascript'],a:'Python وJavaScript وSQL، مع هندسة الأنظمة وقواعد البيانات وواجهات API وتحسين الأداء.'},
- {k:['مشروع','مشاريع','اعمال','أعمال'],a:'تقدر تشوف المشاريع بقسم "المشاريع" بالموقع: نظام إدارة داخلي، تطبيق ويب تفاعلي، أداة أتمتة، وموقع تعريفي مخصّص.'},
- {k:['سعر','كم','تكلف','اسعار','أسعار'],a:'السعر يعتمد على حجم المشروع. راسل حسين على تيليجرام أو انستقرام وياخذ تفاصيل فكرتك ويعطيك تقدير.'},
- {k:['تواصل','رقم','ايميل','بريد','اراسل','تيليجرام','انستقرام','انستا'],a:'التواصل عبر تيليجرام: t.me/dc12i أو انستقرام: instagram.com/zlf7.old'},
- {k:['وين','بصرة','عراق','موقع'],a:'حسين من البصرة، العراق.'},
- {k:['خبر','سنوات'],a:'أكثر من سنتين خبرة برمجية، وأكثر من 10 مشاريع منفّذة.'}
-];
-const hist=[],box=document.getElementById('chatBox'),btn=document.getElementById('chatBtn'),msgs=document.getElementById('msgs'),inp=document.getElementById('chatIn');
-function add(t,c){const d=document.createElement('div');d.className='m '+c;d.textContent=t;msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;return d}
-function toggle(o){box.classList.toggle('open',o);btn.setAttribute('aria-expanded',o);if(o){if(!msgs.children.length)add('هلا! 👋 أنا زلفي، اسألني عن حسين أو خدماته أو حتى سولف وياي عادي.','bot');inp.focus()}}
+// ===== Support chat (ذكاء + إمكانية تدخل صاحب الموقع مباشرة) =====
+const box=document.getElementById('chatBox'),btn=document.getElementById('chatBtn'),msgs=document.getElementById('msgs'),inp=document.getElementById('chatIn');
+let SID=localStorage.getItem('hj_sid');
+if(!SID){SID=(crypto.randomUUID?crypto.randomUUID():'v'+Date.now()+Math.random().toString(36).slice(2)).replace(/[^a-zA-Z0-9_-]/g,'');localStorage.setItem('hj_sid',SID)}
+let renderedCount=0,pollTimer=null;
+
+function bubble(who,text,ownerName){
+ const d=document.createElement('div');
+ if(who==='v'){d.className='m me';d.textContent=text}
+ else if(who==='o'){
+   d.className='m bot owner';
+   d.innerHTML='<span class="owner-tag">'+esc(ownerName||'صاحب الموقع')+' <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#00D4FF" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg></span><div>'+esc(text)+'</div>';
+ } else {d.className='m bot';d.textContent=text}
+ msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;renderedCount++;return d}
+
+function toggle(o){
+ box.classList.toggle('open',o);btn.setAttribute('aria-expanded',o);
+ if(o){if(!msgs.children.length)bubble('a','هلا! 👋 أنا زلفي، اسألني عن حسين أو خدماته أو حتى سولف وياي عادي.');inp.focus();startPoll()}
+ else stopPoll();
+}
 btn.onclick=()=>toggle(!box.classList.contains('open'));
 document.getElementById('chatClose').onclick=()=>toggle(false);
-function local(q){const s=q.toLowerCase();const h=KB.find(e=>e.k.some(w=>s.includes(w)));return h?h.a:'ما لكيت جواب دقيق لسؤالك. تقدر تراسل حسين مباشرة على تيليجرام: t.me/dc12i'}
+
+function startPoll(){
+ if(!API||pollTimer)return;
+ pollTimer=setInterval(async()=>{
+  try{
+   const r=await fetch(API+'/api/live/poll?sid='+SID,{cache:'no-store'});
+   if(!r.ok)return;
+   const d=await r.json();
+   const fresh=d.msgs.slice(renderedCount);
+   fresh.forEach(m=>{if(m.who!=='v')bubble(m.who,m.text,d.ownerName)});
+   renderedCount=d.msgs.length;
+  }catch(e){}
+ },4000);
+}
+function stopPoll(){if(pollTimer){clearInterval(pollTimer);pollTimer=null}}
+
 async function send(){
- const q=inp.value.trim();if(!q)return;inp.value='';add(q,'me');hist.push({role:'user',text:q});
- if(window.__chatOn===false){add('الدردشة متوقفة مؤقتاً 😴','bot');return}
- const w=add('...','bot');
- let a;
- if(API){try{const r=await fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:hist.slice(-10)})});if(!r.ok)throw 0;a=(await r.json()).reply}catch(e){a=local(q)}}
- else a=local(q);
- w.textContent=a;hist.push({role:'model',text:a});msgs.scrollTop=msgs.scrollHeight}
+ const q=inp.value.trim();if(!q)return;inp.value='';
+ bubble('v',q);renderedCount++;
+ if(window.__chatOn===false){bubble('a','الدردشة متوقفة مؤقتاً 😴');return}
+ if(!API){bubble('a','ما قدرت أوصل للخدمة هسه، جرّب مرة ثانية بعد شوي أو راسل حسين مباشرة على تيليجرام: t.me/dc12i');return}
+ const w=bubble('a','...');
+ try{
+  const r=await fetch(API+'/api/live/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sid:SID,name:'زائر',text:q})});
+  if(!r.ok)throw 0;
+  const d=await r.json();
+  if(d.mode==='live'){w.remove();renderedCount--;const n=bubble('a','وصلت رسالتك ✓ راح يردّك حسين مباشرة بأقرب وقت...');}
+  else{w.textContent=d.reply||'...'}
+  renderedCount++;
+ }catch(e){w.textContent='صار خطأ بالاتصال، جرّب مرة ثانية 🙏'}
+}
 document.getElementById('chatSend').onclick=send;
 inp.addEventListener('keydown',e=>{if(e.key==='Enter')send()});
 </script>
