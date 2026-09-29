@@ -62,6 +62,13 @@ label.sw input{width:18px;height:18px;accent-color:var(--cyan)}
 .lm small{display:block;font-size:.68rem;opacity:.7;margin-top:3px}
 .replyRow{display:flex;gap:8px}
 .replyRow textarea{min-height:44px}
+.sess.unread{background:rgba(255,93,108,.06)}
+.rdot{width:9px;height:9px;border-radius:50%;background:var(--red);display:inline-block;margin-left:6px;box-shadow:0 0 6px var(--red)}
+.tabs button .rdot{margin-right:5px;margin-left:0}
+.canned{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.canned button{background:#0f1826;border:1px solid var(--line);color:var(--main);padding:6px 12px;border-radius:20px;font-size:.8rem;cursor:pointer}
+.canned button:hover{border-color:var(--cyan)}
+.pinbtn{background:none;border:0;cursor:pointer;font-size:1.1rem;line-height:1}
 </style>
 </head>
 <body>
@@ -96,7 +103,7 @@ const TABS={overview:['نظرة عامة',vOverview],site:['الموقع',vSite]
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt=t=>new Date(t).toLocaleString('ar-IQ');
-let code=sessionStorage.getItem('c')||'',D,P,L={online:false,sessions:[]},openSid=null,S=null,tab='overview',liveTimer=null;
+let code=sessionStorage.getItem('c')||'',D,P,L={online:false,sessions:[]},openSid=null,S=null,tab='overview',liveTimer=null,liveSearch='';
 
 async function api(p,body){
   const r=await fetch(API+p,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',Authorization:code},body:body?JSON.stringify(body):undefined});
@@ -119,7 +126,8 @@ $('#out').onclick=()=>{sessionStorage.removeItem('c');localStorage.removeItem('h
 $('#view').onclick=()=>open('index.html','_blank');
 
 function draw(){
-  $('#tabs').innerHTML=Object.entries(TABS).map(([k,v])=>`<button data-k="${k}" class="${k===tab?'on':''}">${v[0]}${k==='live'&&L.online?' 🟢':''}</button>`).join('');
+  const anyUnread=L.sessions.some(s=>s.unread);
+  $('#tabs').innerHTML=Object.entries(TABS).map(([k,v])=>`<button data-k="${k}" class="${k===tab?'on':''}">${v[0]}${k==='live'&&L.online?' 🟢':''}${k==='live'&&anyUnread?'<span class="rdot"></span>':''}</button>`).join('');
   $('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.k;openSid=null;draw()});
   $('#main').innerHTML=TABS[tab][1]();
   bind();
@@ -151,26 +159,40 @@ function vProjects(){return `<div class="card"><h3>المشاريع (تظهر ف
 function vInbox(){return `<div class="card"><h3>الرسائل الواردة (${D.inbox.length})</h3>${D.inbox.map(m=>`<div class="item"><small>${esc(m.name||'بدون اسم')} · ${fmt(m.t)}</small><p>${esc(m.msg)}</p></div>`).join('')||'<p class="hint">ما في رسائل.</p>'}</div>${D.inbox.length?'<button class="btn r" data-clear="inbox">مسح الكل</button>':''}`}
 
 // ===== الدردشة المباشرة =====
+function sessListHtml(){
+  const q=liveSearch.trim().toLowerCase();
+  let list=L.sessions.filter(s=>!q||s.name.toLowerCase().includes(q));
+  list=[...list].sort((a,b)=>(b.pinned-a.pinned)||(b.lastAt-a.lastAt));
+  return list.map(s=>`<div class="sess ${s.unread?'unread':''}" data-open="${s.id}"><span><b>${s.pinned?'📌 ':''}${esc(s.name)}${s.unread?'<span class=\"rdot\"></span>':''}</b><small>${fmt(s.lastAt)}</small></span><span class="badge ${s.ended?'end':''}">${s.ended?'منتهية':'نشطة'}</span></div>`).join('')||'<p class="hint">ما في محادثات بعد.</p>';
+}
 function vLive(){
   if(openSid)return vLiveDetail();
   return `<div class="card"><h3><span class="dot ${L.online?'on':'off'}"></span>${L.online?'أنت متصل الآن':'أنت غير متصل'}</h3>
    <label class="sw"><input type="checkbox" id="pres" ${L.online?'checked':''}> فعّل هذا الخيار وقت تحب ترد على الناس بنفسك بدل الذكاء</label>
    <p class="hint">لما يكون مفعّل، الذكاء يوقف عن الرد وتوصلك الرسائل هنا لترد عليها مباشرة. لما توقفه، الذكاء يرجع يرد تلقائياً.</p></div>
-   <div class="card"><h3>اسمك الظاهر للزوار</h3>
-   <input type="text" id="on" value="${esc(D.cfg.ownerName)}" placeholder="حسين جبار">
+   <div class="card"><h3>هويتك بالدردشة</h3>
+   <input type="text" id="on" value="${esc(D.cfg.ownerName)}" placeholder="حسين جبار" style="margin-bottom:10px">
+   <input type="text" id="oa" value="${esc(D.cfg.ownerAvatar)}" placeholder="رابط صورتك الشخصية (اختياري)">
    <label class="sw"><input type="checkbox" id="ob" ${D.cfg.ownerBadge?'checked':''}> إظهار علامة توثيق ✓ جنب اسمك</label>
    <p class="hint">مدة انتهاء المحادثة تلقائياً إذا ما صار فيها أي رسالة جديدة (بالدقائق):</p>
-   <input type="text" id="ltm" value="${D.cfg.liveTimeoutMin}" inputmode="numeric"></div>
+   <input type="text" id="ltm" value="${D.cfg.liveTimeoutMin}" inputmode="numeric">
+   <p class="hint">ردود جاهزة سريعة (وحدة بكل سطر، تطلع كأزرار جوه أي محادثة):</p>
+   <textarea id="cn" placeholder="هلا فيك، شلونك؟&#10;شكراً لتواصلك معي">${esc((D.cfg.canned||[]).join('\n'))}</textarea>
+   </div>
    <button class="btn" id="save">حفظ</button>
    <div class="card"><h3>المحادثات (${L.sessions.length})</h3>
-   ${L.sessions.map(s=>`<div class="sess" data-open="${s.id}"><span><b>${esc(s.name)}</b><small>${fmt(s.lastAt)}</small></span><span class="badge ${s.ended?'end':''}">${s.ended?'منتهية':'نشطة'}</span></div>`).join('')||'<p class="hint">ما في محادثات بعد.</p>'}
+   <input type="text" id="liveSearch" placeholder="دوّر باسم..." value="${esc(liveSearch)}" style="margin-bottom:12px">
+   <div id="sessList">${sessListHtml()}</div>
    </div>`;
 }
 function vLiveDetail(){
   if(!S)return '<p class="hint">...جارِ التحميل</p>';
+  const canned=D.cfg.canned||[];
   return `<button class="btn g" id="back">← رجوع للقائمة</button>
-   <div class="card" style="margin-top:14px"><h3>${esc(S.name)}</h3>
+   <div class="card" style="margin-top:14px">
+   <h3 style="display:flex;justify-content:space-between;align-items:center">${esc(S.name)}<button class="pinbtn" id="pinBtn" title="تثبيت المحادثة">${S.pinned?'📌':'📍'}</button></h3>
    <div id="liveMsgs">${liveMsgsHtml(S.msgs)}</div>
+   ${canned.length?`<div class="canned">${canned.map((c,i)=>`<button data-cn="${i}">${esc(c)}</button>`).join('')}</div>`:''}
    <div class="replyRow"><textarea id="replyBox" placeholder="اكتب ردّك هنا..."></textarea><button class="btn" id="replySend">إرسال</button></div>
    </div>
    <div class="card"><h3>إعدادات هذي المحادثة</h3>
@@ -190,11 +212,15 @@ function liveMsgsHtml(msgs){
     return `<div class="lm o">${tag}<br>${esc(m.text)}<small>${fmt(m.t)}</small></div>`;
   }).join('')||'<p class="hint">ما في رسائل بعد.</p>';
 }
-async function openConv(id){openSid=id;S=null;draw();try{S=await api('/api/admin/live/session',{sid:id});draw()}catch(e){toast('فشل التحميل')}}
+async function openConv(id){openSid=id;S=null;draw();try{S=await api('/api/admin/live/session',{sid:id});api('/api/admin/live/read',{sid:id}).catch(()=>{});draw()}catch(e){toast('فشل التحميل')}}
 async function liveTick(){
   try{
     if(openSid){const fresh=await api('/api/admin/live/session',{sid:openSid});S=fresh;const c=$('#liveMsgs');if(c)c.innerHTML=liveMsgsHtml(S.msgs)}
-    else{L=await api('/api/admin/live');const list=$('#main');if(list&&tab==='live'&&!openSid)draw()}
+    else{
+      L=await api('/api/admin/live');
+      const typing=document.activeElement&&['INPUT','TEXTAREA'].includes(document.activeElement.tagName);
+      if(tab==='live'&&!openSid&&!typing)draw();
+    }
   }catch(e){}
 }
 
@@ -206,14 +232,18 @@ function bind(){
   m.querySelectorAll('[data-clear]').forEach(b=>b.onclick=async()=>{if(confirm('متأكد؟')){await api('/api/admin/clear',{what:b.dataset.clear});D[b.dataset.clear]=[];draw();toast('تم')}});
   const s=$('#save');if(s)s.onclick=save;
   const pr=$('#pres');if(pr)pr.onchange=async()=>{try{await api('/api/admin/live/presence',{online:pr.checked});L.online=pr.checked;draw();toast(pr.checked?'صرت متصل':'رجع الذكاء يرد')}catch(e){toast('صار خطأ')}};
-  m.querySelectorAll('[data-open]').forEach(el=>el.onclick=()=>openConv(el.dataset.open));
+  bindSessList();
   const back=$('#back');if(back)back.onclick=()=>{openSid=null;S=null;draw()};
   const rs=$('#replySend');if(rs)rs.onclick=sendReply;
   const rb=$('#replyBox');if(rb)rb.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendReply()}});
   const ls=$('#liveSave');if(ls)ls.onclick=saveConvSettings;
   const en=$('#endNow');if(en)en.onclick=async()=>{await api('/api/admin/live/settings',{sid:openSid,end:true});toast('تم الإنهاء');openConv(openSid)};
   const dc=$('#delConv');if(dc)dc.onclick=async()=>{if(confirm('حذف هذي المحادثة نهائياً؟')){await api('/api/admin/live/delete',{sid:openSid});openSid=null;S=null;L=await api('/api/admin/live');draw();toast('تم الحذف')}};
+  const pb=$('#pinBtn');if(pb)pb.onclick=async()=>{S.pinned=!S.pinned;await api('/api/admin/live/settings',{sid:openSid,pinned:S.pinned});draw();toast(S.pinned?'تم التثبيت':'تم إلغاء التثبيت')};
+  m.querySelectorAll('[data-cn]').forEach(b=>b.onclick=()=>{const rb=$('#replyBox');if(rb){rb.value=(D.cfg.canned||[])[+b.dataset.cn]||'';rb.focus()}});
+  const se=$('#liveSearch');if(se)se.oninput=()=>{liveSearch=se.value;const sl=$('#sessList');if(sl){sl.innerHTML=sessListHtml();bindSessList()}};
 }
+function bindSessList(){const sl=$('#sessList');if(sl)sl.querySelectorAll('[data-open]').forEach(el=>el.onclick=()=>openConv(el.dataset.open))}
 async function sendReply(){
   const t=$('#replyBox'),text=t.value.trim();if(!text)return;t.value='';
   try{await api('/api/admin/live/reply',{sid:openSid,text});S=await api('/api/admin/live/session',{sid:openSid});$('#liveMsgs').innerHTML=liveMsgsHtml(S.msgs)}
@@ -227,7 +257,7 @@ async function save(){
   const g=id=>$('#'+id),c=D.cfg;
   if(g('bo')){c.bannerOn=g('bo').checked;c.banner=g('bt').value;c.chatOn=g('co').checked}
   if(g('pe'))c.persona=g('pe').value;
-  if(g('on')){c.ownerName=g('on').value;c.ownerBadge=g('ob').checked;c.liveTimeoutMin=+g('ltm').value||60}
+  if(g('on')){c.ownerName=g('on').value;c.ownerAvatar=g('oa').value.trim();c.ownerBadge=g('ob').checked;c.liveTimeoutMin=+g('ltm').value||60;c.canned=g('cn').value.split('\n').map(x=>x.trim()).filter(Boolean)}
   c.projects=tab==='projects'||c.projects?P.filter(p=>p.name.trim()):null;
   try{await api('/api/admin/config',c);toast('تم الحفظ ✓')}catch(e){toast('فشل الحفظ')}
 }
