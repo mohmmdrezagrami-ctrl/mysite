@@ -28,7 +28,7 @@ h1,h2,.logo-mark{font-family:'Cinzel','Tajawal',serif}
 .o1{width:520px;height:520px;background:radial-gradient(circle,rgba(0,212,255,.18),transparent 70%);top:-150px;right:-150px}
 .o2{width:480px;height:480px;background:radial-gradient(circle,rgba(123,47,247,.16),transparent 70%);bottom:10%;left:-180px}
 .wrap{position:relative;z-index:2;max-width:1140px;margin:0 auto;padding:0 28px}
-nav{position:fixed;top:0;left:0;right:0;z-index:50;backdrop-filter:blur(14px);background:rgba(10,14,20,.78);border-bottom:1px solid var(--line)}
+nav{position:fixed;top:var(--banner-h,0px);left:0;right:0;z-index:50;backdrop-filter:blur(14px);background:rgba(10,14,20,.78);border-bottom:1px solid var(--line);transition:top .25s ease}
 .nav-inner{max-width:1140px;margin:0 auto;padding:16px 28px;display:flex;align-items:center;justify-content:space-between}
 .logo-mark{font-weight:700;font-size:1.15rem;color:var(--bright);display:flex;align-items:center;gap:10px}
 .logo-mark i{width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px 2px var(--cyan)}
@@ -44,7 +44,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:50;backdrop-filter:blur(14px);ba
 .nav-links a{padding:16px 28px;border-bottom:1px solid var(--line)}
 .nav-toggle{display:flex;flex-direction:column;gap:5px;cursor:pointer;background:none;border:0;padding:6px}
 .nav-toggle span{width:22px;height:2px;background:var(--bright);border-radius:2px}}
-.hero{min-height:100vh;display:flex;align-items:center;position:relative;z-index:2;padding-top:90px}
+.hero{min-height:100vh;display:flex;align-items:center;position:relative;z-index:2;padding-top:calc(90px + var(--banner-h,0px));transition:padding-top .25s ease}
 .hero .wrap{width:100%}
 .in-up{opacity:0;animation:up .9s ease forwards}
 @keyframes up{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
@@ -124,6 +124,8 @@ footer span{color:var(--cyan)}
 /* ===== Support chat ===== */
 #chatBtn{position:fixed;left:22px;bottom:22px;z-index:60;width:58px;height:58px;border-radius:50%;border:0;cursor:pointer;background:linear-gradient(120deg,var(--cyan),var(--violet));box-shadow:0 8px 28px rgba(0,212,255,.35);display:flex;align-items:center;justify-content:center;transition:transform .25s}
 #chatBtn:hover{transform:scale(1.07)}
+#chatBtn.buzz{background:linear-gradient(120deg,#ff5d6c,#ff2d55);box-shadow:0 8px 28px rgba(255,45,85,.5);animation:buzzShake 1.3s ease-in-out infinite}
+@keyframes buzzShake{0%,100%{transform:rotate(0) scale(1)}10%{transform:rotate(-14deg) scale(1.05)}20%{transform:rotate(11deg) scale(1.05)}30%{transform:rotate(-9deg)}40%{transform:rotate(7deg)}50%,100%{transform:rotate(0)}}
 #chatBtn svg{width:26px;height:26px;stroke:#04141C;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 #chatBox{position:fixed;left:22px;bottom:96px;z-index:60;width:min(360px,calc(100vw - 44px));height:min(480px,calc(100vh - 130px));background:var(--card);border:1px solid var(--line);border-radius:14px;display:none;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)}
 #chatBox.open{display:flex;animation:up .3s ease forwards}
@@ -134,15 +136,18 @@ footer span{color:var(--cyan)}
 .m.bot{background:#1a2535;color:var(--main);align-self:flex-start;border-top-right-radius:2px}
 .m.me{background:linear-gradient(120deg,var(--cyan),#0ea5e0);color:#04141C;align-self:flex-end;border-top-left-radius:2px;font-weight:500}
 .m.owner{border:1px solid rgba(0,212,255,.35);display:flex;gap:8px;align-items:flex-start;max-width:88%}
-.owner-tag{display:block;font-size:.72rem;color:var(--cyan);font-weight:700;margin-bottom:3px}
+.owner-tag{font-size:.72rem;color:var(--cyan);font-weight:700;margin-bottom:3px}
 .ownav{position:relative;flex:none;width:26px;height:26px;border-radius:50%;overflow:hidden;background:linear-gradient(120deg,var(--cyan),var(--violet));display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#04141C}
 .ownav img{width:100%;height:100%;object-fit:cover}
-.ownav .vb{position:absolute;bottom:-2px;left:-2px;width:12px;height:12px;border-radius:50%;background:#00D4FF;border:2px solid var(--card);display:flex;align-items:center;justify-content:center}
+.owner-tag{display:flex;align-items:center;gap:4px}
+.vb{flex:none;width:13px;height:13px;border-radius:50%;background:#00D4FF;display:flex;align-items:center;justify-content:center}
 .cf{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)}
 #chatIn{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--bright);font:inherit;font-size:.93rem}
 #chatSend{background:var(--cyan);color:#04141C;border:0;border-radius:8px;padding:0 16px;font:700 .9rem 'Tajawal',sans-serif;cursor:pointer}
 /* ===== Banner + Maintenance ===== */
-#banner{position:fixed;top:0;left:0;right:0;z-index:70;background:linear-gradient(90deg,var(--violet),var(--cyan));color:#04141C;text-align:center;font-weight:700;font-size:.88rem;padding:9px 14px}
+#banner{position:fixed;top:0;left:0;right:0;z-index:70;background:linear-gradient(90deg,var(--violet),var(--cyan),var(--violet));background-size:220% 100%;color:#04141C;text-align:center;font-weight:700;font-size:.88rem;padding:10px 14px;box-shadow:0 0 22px rgba(0,212,255,.45);animation:bannerShine 5s linear infinite,bannerPulse 2.2s ease-in-out infinite}
+@keyframes bannerShine{0%{background-position:0% 0}100%{background-position:220% 0}}
+@keyframes bannerPulse{0%,100%{box-shadow:0 0 14px rgba(0,212,255,.35)}50%{box-shadow:0 0 30px rgba(0,212,255,.7)}}
 /* ===== Contact form ===== */
 .cform{max-width:420px;margin:0 auto 30px;display:flex;flex-direction:column;gap:10px;text-align:right}
 .cform input,.cform textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:11px 14px;color:var(--bright);font:inherit}
@@ -283,7 +288,10 @@ const API='https://tiny-mountain-7c6c.hussanjabba15.workers.dev';
   fetch(API+'/api/hit',{method:'POST'}).catch(()=>{});
   try{
     const c=await(await fetch(API+'/api/config?t='+Date.now(),{cache:'no-store'})).json();
-    if(c.banner){const b=document.getElementById('banner');b.textContent=c.banner;b.hidden=false;document.body.style.paddingTop='40px'}
+    if(c.banner){
+     const b=document.getElementById('banner');b.textContent=c.banner;b.hidden=false;
+     requestAnimationFrame(()=>document.documentElement.style.setProperty('--banner-h',b.offsetHeight+'px'));
+    }
     window.__chatOn=c.chatOn!==false;
     if(c.projects&&c.projects.length){
       document.getElementById('projList').innerHTML=c.projects.map((p,i)=>`<div class="card proj reveal in"><div class="pid">${String(i+1).padStart(2,'0')}</div><div class="pname">${esc(p.name)}</div><div class="pdesc">${esc(p.desc)}</div><div class="pstack">${(p.stack||'').split(',').map(s=>s.trim()).filter(Boolean).map(s=>'<span>'+esc(s)+'</span>').join('')}</div></div>`).join('');
@@ -315,21 +323,22 @@ let SID=localStorage.getItem('hj_sid');
 if(!SID){SID=(crypto.randomUUID?crypto.randomUUID():'v'+Date.now()+Math.random().toString(36).slice(2)).replace(/[^a-zA-Z0-9_-]/g,'');localStorage.setItem('hj_sid',SID)}
 let renderedCount=0,pollTimer=null,opened=false,ownerInfo={};
 
-function avatarHtml(name,url,badge){
+function avatarHtml(name,url){
  const inner=url?`<img src="${esc(url)}" alt="">`:`<span>${esc((name||'ح')[0])}</span>`;
- return `<span class="ownav">${inner}${badge?'<i class="vb"><svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></i>':''}</span>`;
+ return `<span class="ownav">${inner}</span>`;
 }
+const vbIcon='<i class="vb"><svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="#fff" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></i>';
 function bubble(who,text,extra){
  const d=document.createElement('div');
  if(who==='v'){d.className='m me';d.textContent=text}
  else if(who==='o'){
    d.className='m bot owner';
-   d.innerHTML=avatarHtml(ownerInfo.ownerName,ownerInfo.ownerAvatar,ownerInfo.ownerBadge)+'<div><span class="owner-tag">'+esc(ownerInfo.ownerName||'صاحب الموقع')+'</span><div>'+esc(text)+'</div></div>';
+   d.innerHTML=avatarHtml(ownerInfo.ownerName,ownerInfo.ownerAvatar)+'<div><span class="owner-tag">'+esc(ownerInfo.ownerName||'صاحب الموقع')+(ownerInfo.ownerBadge?vbIcon:'')+'</span><div>'+esc(text)+'</div></div>';
  } else {d.className='m bot';d.textContent=text}
  msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;return d}
 
-async function openChat(){
- if(opened){inp.focus();return}
+async function initChat(){
+ if(opened)return;
  opened=true;
  if(API){
   try{
@@ -345,7 +354,7 @@ async function openChat(){
 }
 function toggle(o){
  box.classList.toggle('open',o);btn.setAttribute('aria-expanded',o);
- if(o){openChat();inp.focus()} else stopPoll();
+ if(o){initChat();inp.focus();btn.classList.remove('buzz')}
 }
 btn.onclick=()=>toggle(!box.classList.contains('open'));
 document.getElementById('chatClose').onclick=()=>toggle(false);
@@ -358,12 +367,15 @@ function startPoll(){
    if(!r.ok)return;
    const d=await r.json();ownerInfo={...ownerInfo,...d};
    const fresh=d.msgs.slice(renderedCount);
+   const gotReply=fresh.some(m=>m.who!=='v');
    fresh.forEach(m=>{if(m.who!=='v')bubble(m.who,m.text)});
    renderedCount=d.msgs.length;
+   if(gotReply&&!box.classList.contains('open'))btn.classList.add('buzz');
   }catch(e){}
  },4000);
 }
-function stopPoll(){if(pollTimer){clearInterval(pollTimer);pollTimer=null}}
+// نبدأ نراقب الردود من أول ما تفتح الصفحة حتى لو الشات مو مفتوح، عشان نقدر ننبّه الزائر
+if(API)initChat();
 
 async function send(){
  const q=inp.value.trim();if(!q)return;inp.value='';
@@ -385,26 +397,29 @@ async function send(){
 document.getElementById('chatSend').onclick=send;
 inp.addEventListener('keydown',e=>{if(e.key==='Enter')send()});
 
-// ===== سحب نافذة الدردشة =====
-(function(){
- let dragging=false,sx=0,sy=0,ox=0,oy=0;
+// ===== سحب عناصر عائمة (نافذة الدردشة + شريط الإعلان) =====
+function makeDraggable(handleEl,moveEl,onFirstDrag){
+ let dragging=false,sx=0,sy=0,ox=0,oy=0,started=false;
  function start(e){
   const t=e.touches?e.touches[0]:e; dragging=true;
-  const r=box.getBoundingClientRect(); sx=t.clientX; sy=t.clientY; ox=r.left; oy=r.top;
-  box.style.left=ox+'px';box.style.top=oy+'px';box.style.right='auto';box.style.bottom='auto';
+  if(!started&&onFirstDrag)onFirstDrag();
+  started=true;
+  const r=moveEl.getBoundingClientRect(); sx=t.clientX; sy=t.clientY; ox=r.left; oy=r.top;
+  moveEl.style.left=ox+'px';moveEl.style.top=oy+'px';moveEl.style.right='auto';moveEl.style.bottom='auto';
   e.preventDefault();
  }
  function move(e){
   if(!dragging)return; const t=e.touches?e.touches[0]:e;
   let nx=ox+(t.clientX-sx), ny=oy+(t.clientY-sy);
-  nx=Math.max(6,Math.min(innerWidth-box.offsetWidth-6,nx));
-  ny=Math.max(6,Math.min(innerHeight-box.offsetHeight-6,ny));
-  box.style.left=nx+'px';box.style.top=ny+'px';
+  nx=Math.max(6,Math.min(innerWidth-moveEl.offsetWidth-6,nx));
+  ny=Math.max(6,Math.min(innerHeight-moveEl.offsetHeight-6,ny));
+  moveEl.style.left=nx+'px';moveEl.style.top=ny+'px';
  }
  function end(){dragging=false}
- chHead.addEventListener('mousedown',start);addEventListener('mousemove',move);addEventListener('mouseup',end);
- chHead.addEventListener('touchstart',start,{passive:false});addEventListener('touchmove',move,{passive:false});addEventListener('touchend',end);
-})();
+ handleEl.addEventListener('mousedown',start);addEventListener('mousemove',move);addEventListener('mouseup',end);
+ handleEl.addEventListener('touchstart',start,{passive:false});addEventListener('touchmove',move,{passive:false});addEventListener('touchend',end);
+}
+makeDraggable(chHead,box);
 </script>
 </body>
 </html>
